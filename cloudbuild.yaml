@@ -1,0 +1,33 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  - args:
+      - '-x'
+      - '-c'
+      - |
+        ./gradlew deploy \
+          --no-daemon \
+          --project-prop liferay.workspace.home.dir=cloudbuild-tmp/
+    entrypoint: 'bash'
+    id: 'build-artifacts-with-gradle'
+    name: 'gradle:8.5-jdk21'
+  - args:
+      - '-x'
+      - '-c'
+      - |
+        ARCHIVE_NAME="overlay-$PROJECT_ID-$BUILD_ID.tar.gz"
+        BUCKET_NAME="$PROJECT_ID-builds-$CLUSTER_ID"
+
+        tar \
+          --create \
+          --directory cloudbuild-tmp \
+          --file="$$ARCHIVE_NAME" \
+          --gzip \
+          .
+
+        gcloud storage cp \
+          "$$ARCHIVE_NAME" \
+          "gs://$$BUCKET_NAME/$$ARCHIVE_NAME"
+    entrypoint: 'bash'
+    id: 'upload-to-gcs'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
